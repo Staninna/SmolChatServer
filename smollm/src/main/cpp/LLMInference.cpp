@@ -98,6 +98,14 @@ LLMInference::getResponseGenerationSpeed() const {
     return (float)_responseNumTokens / ((float)_responseGenerationTime / 1e6f);
 }
 
+float
+LLMInference::getTimeToFirstToken() const {
+    if (_timeToFirstToken <= 0) {
+        return 0.0f;
+    }
+    return (float)_timeToFirstToken / 1e6f;
+}
+
 int
 LLMInference::getContextSizeUsed() const {
     return _nCtxUsed;
@@ -168,6 +176,7 @@ LLMInference::_preparePrompt(bool enableThinking, const char* continuation) {
     _responseGenerationTime = 0;
     _responseNumTokens      = 0;
     _nCtxUsed               = 0;
+    _timeToFirstToken       = 0;
     _isPrefill              = true;
 
     // apply the chat-template
@@ -358,6 +367,7 @@ LLMInference::completionLoop() {
     // decode steps are counted towards tokens/sec
     if (_isPrefill) {
         _isPrefill = false;
+        _timeToFirstToken = (end - start);
     } else {
         _responseGenerationTime += (end - start);
         _responseNumTokens += 1;
