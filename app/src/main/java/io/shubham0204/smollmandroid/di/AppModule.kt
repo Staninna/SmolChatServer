@@ -23,7 +23,9 @@ import org.koin.dsl.module
 
 val appModule = module {
     single {
-        Room.databaseBuilder(androidContext(), ServerDatabase::class.java, "local_ai_server.db").addMigrations(ServerDatabase.MIGRATION_1_2, ServerDatabase.MIGRATION_2_3).build()
+        Room.databaseBuilder(androidContext(), ServerDatabase::class.java, "local_ai_server.db")
+            .addMigrations(*ServerDatabase.MIGRATIONS)
+            .build()
     }
     single { get<ServerDatabase>().models() }
     single { get<ServerDatabase>().pairedApps() }
