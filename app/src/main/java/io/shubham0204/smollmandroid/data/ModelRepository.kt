@@ -9,6 +9,10 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import io.shubham0204.smollm.GGUFReader
+import io.shubham0204.smollm.close
+import io.shubham0204.smollm.getArchitecture
+import io.shubham0204.smollm.getIntegerValue
+import io.shubham0204.smollm.isValid
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -76,7 +80,13 @@ class ModelRepository(
                     target.delete()
                     throw e
                 }
-            val id = models.insert(entity)
+            val id =
+                try {
+                    models.insert(entity)
+                } catch (e: Throwable) {
+                    target.delete()
+                    throw e
+                }
             if (settings.current.activeModelId < 0 || models.get(settings.current.activeModelId) == null) {
                 settings.update { it.copy(activeModelId = id) }
             }

@@ -18,6 +18,7 @@ object LocalApi {
     const val API_VERSION = 2
     const val DEFAULT_PORT = 8080
     const val LOOPBACK_HOST = "127.0.0.1"
+    const val CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 
     const val ACTION_PAIR = "io.shubham0204.smollmandroid.action.PAIR"
     const val EXTRA_CLIENT_NAME = "client_name"

@@ -6,13 +6,9 @@
 package io.shubham0204.smollmandroid.data
 
 import androidx.room.Dao
-import androidx.room.Database
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.RoomDatabase
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -97,54 +93,4 @@ interface JobDao {
 
     @Query("DELETE FROM jobs WHERE finishedAt IS NOT NULL AND finishedAt < :before")
     suspend fun deleteFinishedBefore(before: Long)
-}
-
-@Database(
-    entities = [ModelEntity::class, PairedAppEntity::class, RequestLogEntity::class, JobEntity::class],
-    version = 3,
-    exportSchema = false,
-)
-abstract class ServerDatabase : RoomDatabase() {
-    companion object {
-        // exactly what Room generates for [JobEntity]; a difference fails the schema check at start
-        const val JOBS_TABLE_SQL =
-            "CREATE TABLE IF NOT EXISTS `jobs` (`id` TEXT NOT NULL, `requestId` TEXT, `clientPackage` TEXT, " +
-                "`clientLabel` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `requestJson` TEXT NOT NULL, " +
-                "`phase` TEXT NOT NULL, `finishedAt` INTEGER, `model` TEXT, `promptTokens` INTEGER NOT NULL, " +
-                "`cachedTokens` INTEGER NOT NULL, `completionTokens` INTEGER NOT NULL, `content` TEXT, " +
-                "`reasoning` TEXT, `finishReason` TEXT, `promptMs` REAL, `generationMs` REAL, " +
-                "`tokensPerSecond` REAL, `errorCode` TEXT, `errorMessage` TEXT, `checkpointText` TEXT, " +
-                "`checkpointTokens` INTEGER NOT NULL, `resumes` INTEGER NOT NULL, PRIMARY KEY(`id`))"
-
-        /** Version 3 adds the table of durable background jobs. */
-        val MIGRATION_2_3 =
-            object : Migration(2, 3) {
-                override fun migrate(db: SupportSQLiteDatabase) {
-                    db.execSQL(JOBS_TABLE_SQL)
-                }
-            }
-
-        /** Version 2 adds per-phase timings to the request log. */
-        val MIGRATION_1_2 =
-            object : Migration(1, 2) {
-                override fun migrate(db: SupportSQLiteDatabase) {
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN mode TEXT")
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN model TEXT")
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN queueMs INTEGER")
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN loadMs INTEGER")
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN promptMs INTEGER")
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN generationMs INTEGER")
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN cachedTokens INTEGER")
-                    db.execSQL("ALTER TABLE request_log ADD COLUMN finishReason TEXT")
-                }
-            }
-    }
-
-    abstract fun models(): ModelDao
-
-    abstract fun pairedApps(): PairedAppDao
-
-    abstract fun requestLog(): RequestLogDao
-
-    abstract fun jobs(): JobDao
 }

@@ -48,6 +48,8 @@ class SettingsRepository(context: Context) {
     val current: ServerSettings
         get() = _settings.value
 
+    // read-modify-write: the inference thread (model fallback) and the UI both update settings
+    @Synchronized
     fun update(transform: (ServerSettings) -> ServerSettings) {
         val next = transform(_settings.value)
         write(next)

@@ -5,6 +5,7 @@
 
 package io.shubham0204.smollmandroid
 
+import io.shubham0204.smollmandroid.api.LocalApi
 import io.shubham0204.smollmandroid.data.StatRow
 import io.shubham0204.smollmandroid.data.StatsCalculator
 import io.shubham0204.smollmandroid.data.StatsPeriod
@@ -21,7 +22,7 @@ class StatsCalculatorTest {
         status: Int = 200,
         client: String? = "com.denser.june",
         label: String? = "June",
-        path: String = StatsCalculator.CHAT_PATH,
+        path: String = LocalApi.CHAT_COMPLETIONS_PATH,
         errorCode: String? = null,
         prompt: Int? = 900,
         completion: Int? = 301,

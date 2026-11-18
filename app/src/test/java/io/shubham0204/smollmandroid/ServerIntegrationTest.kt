@@ -7,6 +7,7 @@ package io.shubham0204.smollmandroid
 
 import io.shubham0204.smollmandroid.auth.TokenAuth
 import io.shubham0204.smollmandroid.data.PairedAppEntity
+import io.shubham0204.smollmandroid.data.RequestLogDao
 import io.shubham0204.smollmandroid.data.ServerSettings
 import io.shubham0204.smollmandroid.http.LocalAiServer
 import io.shubham0204.smollmandroid.jobs.JobManager
@@ -40,12 +41,12 @@ class ServerIntegrationTest {
     private var server: LocalAiServer? = null
     private var port = 0
 
-    private fun start(backend: FakeBackend): FakeBackend {
+    private fun start(backend: FakeBackend, requestLog: RequestLogDao = log): FakeBackend {
         apps.add(PairedAppEntity("com.denser.june", "June", TokenAuth.hash(token), pairedAt = 0))
         apps.add(PairedAppEntity("com.other", "Other", TokenAuth.hash(otherToken), pairedAt = 0))
         port = ServerSocket(0).use { it.localPort }
-        val jobs = JobManager(backend, log, FakeJobDao(), wake) { false }
-        server = LocalAiServer(backend, jobs, apps, log) { ServerSettings() }.also { it.start(port) }
+        val jobs = JobManager(backend, requestLog, FakeJobDao(), wake) { false }
+        server = LocalAiServer(backend, jobs, apps, requestLog) { ServerSettings() }.also { it.start(port) }
         assertTrue(server!!.state.value.running)
         return backend
     }
@@ -285,5 +286,32 @@ class ServerIntegrationTest {
         assertEquals(404, call("GET", "/v1/jobs/$uuid").status)
 
         assertEquals(400, call("POST", "/v1/chat/completions", chat(""","background":true,"request_id":"no spaces!"""")).status)
+    }
+
+    @Test
+    fun `a body over the limit is refused as too large, also when its characters are multibyte`() {
+        start(FakeBackend())
+        // 600k two-byte characters: 1.2 MB on the wire, but only 600k characters
+        val content = "é".repeat(600_000)
+        val reply = call("POST", "/v1/chat/completions", """{"messages":[{"role":"user","content":"$content"}]}""")
+        assertEquals(400, reply.status)
+        assertEquals("Request body is too large", reply.json["error"]!!.jsonObject["message"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a request log that cannot be written does not take the server down`() {
+        val crashes = java.util.concurrent.CopyOnWriteArrayList<Throwable>()
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { _, e -> crashes += e }
+        try {
+            start(FakeBackend(), requestLog = FailingRequestLog())
+            assertEquals(401, call("GET", "/v1/models", auth = null).status)
+            assertEquals(200, call("GET", "/v1/models").status)
+            Thread.sleep(300) // the log writes run after the response
+            assertEquals(emptyList<Throwable>(), crashes.toList())
+            assertEquals(200, call("GET", "/health", auth = null).status)
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous)
+        }
     }
 }
