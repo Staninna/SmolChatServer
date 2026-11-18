@@ -77,7 +77,7 @@ data class PreparedPrompt(
     val promptTokens: Int,
     val maxTokens: Int,
     val opensThink: Boolean,
-    /** Prompt tokens already in the KV cache from the previous request (not processed again). */
+    /** Prompt tokens already in the KV cache from the previous request (not processed again); at most [promptTokens]. */
     val cachedTokens: Int = 0,
     /** Set when this run continues an interrupted answer. */
     val resumed: Checkpoint? = null,
@@ -145,9 +145,8 @@ interface GenerationBackend {
     val state: StateFlow<EngineState>
 
     /**
-     * Runs [block] once it is this request's turn (FIFO).
-     *
-     * @throws ApiException [ApiError.ServerBusy] when the queue is full.
+     * Runs [block] once it is this request's turn (FIFO). Admission (how many may wait) is the
+     * caller's business: JobManager is the only way work reaches the engine.
      */
     suspend fun <T> withSlot(block: suspend (GenerationSession) -> T): T
 }
@@ -155,8 +154,8 @@ interface GenerationBackend {
 /**
  * Owns the single loaded model and runs one request at a time.
  *
- * Requests wait on a fair [Mutex], which resumes waiters in FIFO order. At most [MAX_WAITING]
- * requests may wait; more get [ApiError.ServerBusy]. All native calls run on one dedicated thread.
+ * Requests wait on a fair [Mutex], which resumes waiters in FIFO order. All native calls run on one
+ * dedicated thread.
  */
 class InferenceEngine(
     private val models: ModelDao,
@@ -190,10 +189,7 @@ class InferenceEngine(
     }
 
     override suspend fun <T> withSlot(block: suspend (GenerationSession) -> T): T {
-        if (waiting.incrementAndGet() > MAX_WAITING + 1) {
-            waiting.decrementAndGet()
-            throw ApiException(ApiError.ServerBusy, "The local AI is busy. Try again in a few seconds.")
-        }
+        waiting.incrementAndGet()
         publishQueue()
         try {
             return gate.withLock {
@@ -366,7 +362,8 @@ class InferenceEngine(
                     maxTokens = request.maxTokens ?: (ctx - promptTokens),
                     resumed = resumeFrom,
                     opensThink = smolLM.promptOpensThink(),
-                    cachedTokens = smolLM.getPromptCachedTokenCount(),
+                    // the cache can also hold part of a resumed answer, which is not prompt
+                    cachedTokens = smolLM.getPromptCachedTokenCount().coerceAtMost(promptTokens),
                 )
             }
 
@@ -395,11 +392,7 @@ class InferenceEngine(
                     tokensAtFirst = tokens
                     // The prompt goes in small batches: that gives progress, and a request whose
                     // client went away stops here instead of blocking the queue for minutes.
-                    progress?.onPrompt(
-                        prepared.cachedTokens.coerceAtMost(prepared.promptTokens),
-                        prepared.promptTokens,
-                        prepared.cachedTokens.coerceAtMost(prepared.promptTokens),
-                    )
+                    progress?.onPrompt(prepared.cachedTokens, prepared.promptTokens, prepared.cachedTokens)
                     while (true) {
                         coroutineContext.ensureActive()
                         val left = native { smolLM.processPrompt(PROMPT_BATCH) }
@@ -407,7 +400,7 @@ class InferenceEngine(
                         progress?.onPrompt(
                             (total - left).coerceIn(0, prepared.promptTokens),
                             prepared.promptTokens,
-                            prepared.cachedTokens.coerceAtMost(prepared.promptTokens),
+                            prepared.cachedTokens,
                         )
                         if (left <= 1) break
                     }
@@ -483,7 +476,6 @@ class InferenceEngine(
 
     companion object {
         private const val TAG = "InferenceEngine"
-        const val MAX_WAITING = 4
 
         /** Prompt tokens per native call: small enough for smooth progress and quick cancellation. */
         private const val PROMPT_BATCH = 32
