@@ -67,7 +67,9 @@ import io.shubham0204.smollmandroid.api.JobStatus
 import io.shubham0204.smollmandroid.api.JobList
 import io.shubham0204.smollmandroid.api.JobProgress
 import io.ktor.server.routing.delete
+import io.shubham0204.smollmandroid.engine.GenerationResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -75,7 +77,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.io.readString
+import kotlinx.io.readByteArray
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 
@@ -90,7 +92,12 @@ class LocalAiServer(
     private val requestLog: RequestLogDao,
     private val settings: () -> ServerSettings,
 ) {
-    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // fire-and-forget bookkeeping (request log, last use of an app): a failed write is logged, it
+    // must never take the server process down
+    private val ioScope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e -> Log.w(TAG, "background write failed", e) }
+        )
     private var server: EmbeddedServer<CIOApplicationEngine, CIOApplicationEngine.Configuration>? = null
     private val json = LocalApi.json
     private val lookup = TokenLookup { hash ->
@@ -241,8 +248,9 @@ class LocalAiServer(
      * server-sent events (`stream`), or the plain response.
      */
     private suspend fun chatCompletions(call: ApplicationCall, client: AuthenticatedClient) {
-        val body = call.receiveChannel().readRemaining(MAX_BODY_BYTES + 1).readString()
-        if (body.length > MAX_BODY_BYTES) throw ApiException(ApiError.InvalidRequest, "Request body is too large")
+        val bytes = call.receiveChannel().readRemaining(MAX_BODY_BYTES + 1).readByteArray()
+        if (bytes.size > MAX_BODY_BYTES) throw ApiException(ApiError.InvalidRequest, "Request body is too large")
+        val body = bytes.decodeToString()
         val request =
             try {
                 json.decodeFromString<ChatCompletionRequest>(body)
@@ -350,13 +358,7 @@ class LocalAiServer(
                     is JobEvent.Finished -> {
                         when (val o = event.outcome) {
                             is JobOutcome.Success -> {
-                                val usage =
-                                    Usage(
-                                        o.result.promptTokens,
-                                        o.result.completionTokens,
-                                        o.result.promptTokens + o.result.completionTokens,
-                                    )
-                                write(chunk(ChunkDelta(), finish = o.result.finishReason, usage = usage))
+                                write(chunk(ChunkDelta(), finish = o.result.finishReason, usage = o.result.usage()))
                             }
                             // the stream already started: report in-band (§2.3)
                             is JobOutcome.Failure ->
@@ -391,7 +393,7 @@ class LocalAiServer(
                         finishReason = result.finishReason,
                     )
                 ),
-            usage = Usage(result.promptTokens, result.completionTokens, result.promptTokens + result.completionTokens),
+            usage = result.usage(),
             timings =
                 Timings(
                     promptMs = result.promptMs,
@@ -470,6 +472,8 @@ class LocalAiServer(
     private suspend fun findJob(call: ApplicationCall, client: AuthenticatedClient): ServerJob =
         call.parameters["id"]?.let { jobs.find(it, client.packageName) }
             ?: throw ApiException(ApiError.NotFound, "Unknown job. Results are kept for 24 hours after a job ends.")
+
+    private fun GenerationResult.usage() = Usage(promptTokens, completionTokens, promptTokens + completionTokens)
 
     private fun writeLog(entry: RequestLogEntity, started: Long) {
         val final = entry.copy(durationMs = System.currentTimeMillis() - started)
