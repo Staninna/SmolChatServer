@@ -80,7 +80,13 @@ class ModelRepository(
                     target.delete()
                     throw e
                 }
-            val id = models.insert(entity)
+            val id =
+                try {
+                    models.insert(entity)
+                } catch (e: Throwable) {
+                    target.delete()
+                    throw e
+                }
             if (settings.current.activeModelId < 0 || models.get(settings.current.activeModelId) == null) {
                 settings.update { it.copy(activeModelId = id) }
             }

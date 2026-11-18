@@ -123,7 +123,7 @@ internal fun ServerJob.toLogEntry(outcome: JobOutcome, logBodies: Boolean, now: 
         clientPackage = s.clientPackage,
         clientLabel = s.clientLabel,
         method = "POST",
-        path = JobManager.CHAT_PATH,
+        path = LocalApi.CHAT_COMPLETIONS_PATH,
         status =
             when (outcome) {
                 is JobOutcome.Success -> 200

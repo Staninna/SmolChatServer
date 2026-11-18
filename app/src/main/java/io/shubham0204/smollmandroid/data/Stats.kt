@@ -5,6 +5,9 @@
 
 package io.shubham0204.smollmandroid.data
 
+import io.shubham0204.smollmandroid.api.ApiError
+import io.shubham0204.smollmandroid.api.LocalApi
+
 /** The request-log columns that statistics need (no prompt or response text). */
 data class StatRow(
     val timestamp: Long,
@@ -75,17 +78,15 @@ data class UsageStats(
 }
 
 object StatsCalculator {
-    const val CHAT_PATH = "/v1/chat/completions"
-    private const val CLIENT_CLOSED_STATUS = 499
 
     fun compute(rows: List<StatRow>, period: StatsPeriod, now: Long): UsageStats {
         val since = now - period.spanMs
         val window = rows.filter { it.timestamp in since..now }
-        val generations = window.filter { it.path == CHAT_PATH && it.status != 401 }
+        val generations = window.filter { it.path == LocalApi.CHAT_COMPLETIONS_PATH && it.status != 401 }
         if (window.isEmpty()) return UsageStats(requestBuckets = List(period.buckets) { 0 }, failureBuckets = List(period.buckets) { 0 })
 
         val ok = generations.filter { it.status in 200..299 }
-        val cancelled = generations.count { it.status == CLIENT_CLOSED_STATUS }
+        val cancelled = generations.count { it.status == ApiError.Cancelled.httpStatus }
         val bucketMs = period.spanMs / period.buckets
         val requestBuckets = IntArray(period.buckets)
         val failureBuckets = IntArray(period.buckets)

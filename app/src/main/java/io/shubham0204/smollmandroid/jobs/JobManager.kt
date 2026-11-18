@@ -416,7 +416,6 @@ class JobManager(
 
     companion object {
         private const val TAG = "JobManager"
-        const val CHAT_PATH = "/v1/chat/completions"
         const val CLIENT_CLOSED = "client_closed"
         private const val PREVIEW_CHARS = 600
 

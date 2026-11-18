@@ -181,7 +181,7 @@ class LocalAiServer(
                     call.respondJson(HttpStatusCode.OK, json.encodeToString(list))
                 }
             }
-            post("/v1/chat/completions") { handleApi(call, port) { client, _ -> chatCompletions(call, client) } }
+            post(LocalApi.CHAT_COMPLETIONS_PATH) { handleApi(call, port) { client, _ -> chatCompletions(call, client) } }
             get("/v1/jobs") { handleApi(call, port) { client, _ -> listJobs(call, client) } }
             get("/v1/jobs/{id}") { handleApi(call, port) { client, _ -> getJob(call, client) } }
             delete("/v1/jobs/{id}") { handleApi(call, port) { client, _ -> deleteJob(call, client) } }
