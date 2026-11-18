@@ -167,6 +167,11 @@ class FakeRequestLog : RequestLogDao {
     override suspend fun clear() = rows.clear()
 }
 
+/** A request log on a full or broken disk: every write fails. */
+class FailingRequestLog : RequestLogDao by FakeRequestLog() {
+    override suspend fun insert(entry: RequestLogEntity) = throw java.io.IOException("disk full")
+}
+
 class FakePairedApps(private val apps: MutableMap<String, PairedAppEntity> = mutableMapOf()) : PairedAppDao {
     fun add(app: PairedAppEntity) {
         apps[app.packageName] = app
@@ -202,10 +207,11 @@ class FakeWakeHold : WakeHold {
 }
 
 /** The jobs table. Hand the same instance to a second JobManager to play "the process restarted". */
-class FakeJobDao : JobDao {
+class FakeJobDao(private val failWrites: Boolean = false) : JobDao {
     val rows = java.util.concurrent.ConcurrentHashMap<String, JobEntity>()
 
     override suspend fun upsert(job: JobEntity) {
+        if (failWrites) throw java.io.IOException("disk full")
         rows[job.id] = job
     }
 

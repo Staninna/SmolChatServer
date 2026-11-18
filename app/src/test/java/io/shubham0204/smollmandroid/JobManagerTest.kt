@@ -280,4 +280,21 @@ class JobManagerTest {
         withTimeout(5_000) { jobs.submit("com.example", "Example", request("a"), JobMode.Blocking).await() }
         assertTrue(store.rows.isEmpty())
     }
+
+    @Test
+    fun `a background job that cannot be stored is refused, not acknowledged`() = runBlocking {
+        val backend = FakeBackend()
+        val jobs = JobManager(backend, log, FakeJobDao(failWrites = true), wake) { false }
+        try {
+            jobs.submit("com.example", "Example", request("keep me"), JobMode.Background)
+            fail("expected internal_error")
+        } catch (e: ApiException) {
+            assertEquals(ApiError.InternalError, e.error)
+        }
+        assertTrue(jobs.list("com.example").isEmpty())
+        assertTrue(jobs.active.value.isEmpty())
+        assertFalse(wake.held)
+        delay(50)
+        assertTrue("a refused job never runs", backend.started.isEmpty())
+    }
 }

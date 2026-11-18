@@ -9,6 +9,10 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import io.shubham0204.smollm.GGUFReader
+import io.shubham0204.smollm.close
+import io.shubham0204.smollm.getArchitecture
+import io.shubham0204.smollm.getIntegerValue
+import io.shubham0204.smollm.isValid
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive

@@ -6,7 +6,18 @@
 package io.shubham0204.smollmandroid.engine
 
 import android.util.Log
+import io.shubham0204.smollm.SamplingParams
 import io.shubham0204.smollm.SmolLM
+import io.shubham0204.smollm.finishCompletion
+import io.shubham0204.smollm.getContextSize
+import io.shubham0204.smollm.getPromptCachedTokenCount
+import io.shubham0204.smollm.getPromptTokenCount
+import io.shubham0204.smollm.isLoaded
+import io.shubham0204.smollm.nextToken
+import io.shubham0204.smollm.prepareChatCompletion
+import io.shubham0204.smollm.processPrompt
+import io.shubham0204.smollm.promptOpensThink
+import io.shubham0204.smollm.setSamplingParams
 import io.shubham0204.smollmandroid.api.ApiError
 import io.shubham0204.smollmandroid.api.ApiException
 import io.shubham0204.smollmandroid.api.RequestValidator
@@ -330,7 +341,7 @@ class InferenceEngine(
                     }
                 }
                 smolLM.setSamplingParams(
-                    SmolLM.SamplingParams(
+                    SamplingParams(
                         temperature = request.temperature,
                         topP = request.topP,
                         topK = request.topK,

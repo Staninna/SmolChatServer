@@ -40,6 +40,7 @@ function(build_library target_name)
             ${target_name}
             SHARED
             LLMInference.cpp
+            LLMInferenceServer.cpp
             smollm.cpp
     )
     target_include_directories(
@@ -136,7 +137,7 @@ endif()
 
 # library target for GGUFReader
 set(TARGET_NAME_GGUF_READER ggufreader)
-add_library(${TARGET_NAME_GGUF_READER} SHARED GGUFReader.cpp)
+add_library(${TARGET_NAME_GGUF_READER} SHARED GGUFReader.cpp GGUFMetadata.cpp)
 target_include_directories(
         ${TARGET_NAME_GGUF_READER}
         PUBLIC
