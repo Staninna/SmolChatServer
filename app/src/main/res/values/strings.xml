@@ -28,7 +28,7 @@
     <string name="home_privacy_footer">Only apps you pair can use the model. The server listens on 127.0.0.1 only and never connects to the internet.</string>
 
     <string name="status_stopped">Stopped</string>
-    <string name="status_stopped_body">Start the server so paired apps can use the model.</string>
+    <string name="status_stopped_body">Paired apps start the server when they need it, or start it here.</string>
     <string name="status_no_model">No model yet</string>
     <string name="status_no_model_body">Import a GGUF file, for example Qwen3.5-4B-Q4_K_M, to get started.</string>
     <string name="status_loading">Loading model</string>
@@ -44,7 +44,7 @@
     <string name="status_error_body">Something went wrong. Check the model and settings.</string>
 
     <string name="setup_banner_title">Finish setup</string>
-    <string name="setup_banner_body">Allow notifications and unrestricted battery use so the server keeps running.</string>
+    <string name="setup_banner_body">Allow notifications and unrestricted battery use so the server keeps running, and paired apps can start it from the background.</string>
 
     <string name="metric_model">Model</string>
     <string name="metric_none">None</string>
@@ -128,7 +128,7 @@
     <string name="settings_threads_auto">Auto (%1$d)</string>
     <string name="settings_threads_help">0 uses the performance cores only, which is usually fastest.</string>
     <string name="settings_idle">Unload when idle</string>
-    <string name="settings_idle_help">Minutes without requests before the model is unloaded. 0 keeps it loaded.</string>
+    <string name="settings_idle_help">Minutes without requests before the model is unloaded and the server stops. Paired apps start it again when they need it. 0 keeps it running.</string>
     <string name="settings_mmap">Memory-map model</string>
     <string name="settings_mmap_help">Faster loading and lower memory pressure.</string>
     <string name="settings_mlock">Lock model in memory</string>

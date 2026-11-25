@@ -1,9 +1,9 @@
-# Local LLM API — contract v2
+# Local LLM API — contract v3
 
-This document is the shared contract between the **server** (the SmolChat fork,
-package `io.shubham0204.smollmandroid`) and its **clients** (for example the June
-fork, package `com.denser.june` / `com.denser.june.debug`). The same file lives in
-both repositories at `docs/LOCAL_LLM_API.md`; change it in both or in neither.
+This document is the contract between the **server** (the SmolChat fork,
+package `io.shubham0204.smollmandroid`) and its **clients** (the June fork,
+`com.denser.june`, and the HeliBoard fork, `helium314.keyboard`). This file in the
+SmolChat repository is the only copy; clients link to it.
 
 Design goals: fully on-device, FOSS only, no traffic beyond `127.0.0.1`, one model
 in RAM, OpenAI-compatible enough that existing client code needs few changes, and
@@ -20,7 +20,7 @@ explicit, revocable per-app consent.
 | Scheme        | plain `http` (loopback only; TLS adds nothing here)               |
 | Encoding      | UTF-8 JSON, `Content-Type: application/json`                      |
 | Streaming     | Server-Sent Events, `Content-Type: text/event-stream`             |
-| API version   | `2` (returned by `/health` and the pairing result)                |
+| API version   | `3` (returned by `/health` and the pairing result)                |
 
 All paths below are relative to `base_url`, which the pairing result provides
 (for example `http://127.0.0.1:8080`). Clients must not hard-code the port.
@@ -96,11 +96,12 @@ Lets a client check whether the server is running before (or without) pairing.
   "api_version": 1,
   "model": "Qwen3.5-4B-Q4_K_M",
   "queue_length": 0,
-  "features": ["background_jobs", "prompt_cache", "request_id", "durable_jobs"]
+  "features": ["background_jobs", "prompt_cache", "request_id", "durable_jobs", "wake"]
 }
 ```
 
-`features` (v2) lists optional capabilities. A v1 server has no such field.
+`features` (v2) lists optional capabilities. A v1 server has no such field. `wake` (v3)
+means the server can be started with §3.5.
 
 `status` is one of:
 
@@ -430,7 +431,7 @@ A translucent activity shows a Material 3 dialog:
 |------------------|--------|-------------------------------|
 | `token`          | String | `sk-local-Qm9v…`              |
 | `base_url`       | String | `http://127.0.0.1:8080`       |
-| `api_version`    | int    | `2`                           |
+| `api_version`    | int    | `3`                           |
 | `server_package` | String | `io.shubham0204.smollmandroid`|
 
 `RESULT_CANCELED` (no extras) if the user declines, dismisses the dialog, or the
@@ -442,14 +443,59 @@ If the user later changes the server's port, existing clients still have the old
 
 ### 3.4 Opening the server
 
-When `/health` cannot be reached, clients should offer **"Open server app"**:
+When `/health` cannot be reached, a paired client first wakes the server (§3.5). When that
+fails, it offers **"Open server app"**:
 
 ```kotlin
 context.packageManager.getLaunchIntentForPackage("io.shubham0204.smollmandroid")
 ```
 
 When `null` is returned (the server is not installed), say so instead of crashing.
-Opening the server's main screen starts its foreground service once a model is set up.
+Opening the server app does not start the server by itself: the user taps *Start server*.
+
+### 3.5 Waking the server (v3)
+
+A paired app can start a stopped server without showing anything: bind the server's wake
+service, make one `wake()` call, unbind. No popup, no activity.
+
+```kotlin
+val intent = Intent("io.shubham0204.smollmandroid.action.WAKE")
+    .setPackage("io.shubham0204.smollmandroid")
+context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+
+// in onServiceConnected(name, binder), off the main thread:
+val data = Parcel.obtain()
+val reply = Parcel.obtain()
+data.writeInterfaceToken("io.shubham0204.smollmandroid.IWake")
+binder.transact(IBinder.FIRST_CALL_TRANSACTION, data, reply, 0)
+reply.readException()
+val result = reply.readInt()
+context.unbindService(connection)
+```
+
+| `result` | meaning                    | client action                                         |
+|----------|----------------------------|-------------------------------------------------------|
+| `0`      | started (or already running) | poll `/health` until it answers, then send the request |
+| `1`      | not paired                 | pair again (§3); also returned for a reinstall signed by another certificate |
+| `2`      | no model                   | the user has to import or pick a model in the server app |
+| `3`      | not allowed now            | Android refused to start the server from the background; offer "Open server app" |
+| `4`      | failed                     | offer "Open server app"                               |
+
+* The server identifies the caller by its UID (`Binder.getCallingUid()`), not by
+  anything it sends. The caller must be paired, and signed by the certificate it had when
+  it paired. Pairings made before v3 learn the certificate at their first wake.
+* The order is: bind, `wake()`, poll `/health` (every 500 ms, for about 10 seconds),
+  unbind. The server listens about a second after `0`; the model loads on the first
+  request or right after the start.
+* **When Android allows it.** A client that is on screen, or is the active keyboard,
+  can always wake the server. A client in the background can only do so when the server
+  app has unrestricted battery use (the server asks for it at pairing). Otherwise the
+  answer is `3`.
+* Clients that target API 30+ need package visibility for the bind, which the `<queries>`
+  entry of §3.1 already gives.
+* The server stops on its own after the idle timeout (default 10 minutes without
+  requests): it unloads the model, stops its foreground service and removes the
+  notification. The next request finds nothing listening, and the client wakes it again.
 
 ---
 
@@ -493,6 +539,10 @@ unload) **waits** in the queue until loading is done; it does not get an error.
   server's settings, and turning it off deletes the stored bodies.
 * While a request runs, the server app shows who asked, the phase, token counts and, on
   demand, the tail of the text being written. That preview lives in memory only.
+* **Guarantee (v3): blocking and streaming requests leave no text behind.** The prompt
+  and the answer are never written to the server's disk (no chat history, no request
+  body in the log unless the debug toggle is on) and never to logcat. A change to the
+  server that breaks this is a contract change.
 * A **background job** is the one exception to "no text on disk": its request, a checkpoint
   of the answer and the result are stored in the server's private database so the job
   survives a restart (§2.4). They are deleted when the client deletes the job, and at the
@@ -523,6 +573,11 @@ the sampling values for that request only.
 
 ## 7. Changelog
 
+* **v3**: paired apps can start a stopped server without a popup (§3.5, `wake` in
+  `features`); the server checks the caller's signing certificate; after the idle timeout
+  the server stops completely instead of only unloading the model; §3.4 no longer claims
+  that opening the server app starts the server; the no-text-on-disk guarantee for
+  blocking and streaming requests is part of the contract (§5). This file is the only copy.
 * **v2**: background jobs (`background: true`, `GET`/`DELETE /v1/jobs/{id}`, `GET /v1/jobs`,
   §2.4) that are addressed by the client's own `request_id`, stored on disk, and continued
   from a checkpoint after the server was stopped or killed; SSE

@@ -30,7 +30,7 @@ import org.junit.Test
 
 /**
  * The real HTTP server (Ktor on a loopback port) with a fake model behind it: what a paired client
- * sees for contract v2, including a client that disappears in the middle of a request.
+ * sees for contract v3, including a client that disappears in the middle of a request.
  */
 class ServerIntegrationTest {
     private val log = FakeRequestLog()
@@ -90,11 +90,12 @@ class ServerIntegrationTest {
     }
 
     @Test
-    fun `health reports contract v2 without a token`() {
+    fun `health reports contract v3 without a token`() {
         start(FakeBackend())
         val health = call("GET", "/health", auth = null)
         assertEquals(200, health.status)
-        assertEquals(2, health.json["api_version"]!!.jsonPrimitive.int)
+        assertEquals(3, health.json["api_version"]!!.jsonPrimitive.int)
+        assertTrue(health.json["features"]!!.jsonArray.any { it.jsonPrimitive.content == "wake" })
         assertEquals("ok", health.json["status"]!!.jsonPrimitive.content)
         assertTrue(health.json["features"]!!.jsonArray.any { it.jsonPrimitive.content == "background_jobs" })
     }

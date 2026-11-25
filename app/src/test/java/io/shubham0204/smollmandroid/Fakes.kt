@@ -190,6 +190,12 @@ class FakePairedApps(private val apps: MutableMap<String, PairedAppEntity> = mut
     override suspend fun revoke(packageName: String) {
         apps.remove(packageName)
     }
+
+    override suspend fun get(packageName: String): PairedAppEntity? = apps[packageName]
+
+    override suspend fun setCertDigest(packageName: String, digest: String) {
+        apps[packageName]?.let { apps[packageName] = it.copy(certDigest = digest) }
+    }
 }
 
 class FakeWakeHold : WakeHold {

@@ -36,6 +36,7 @@ import androidx.lifecycle.lifecycleScope
 import io.shubham0204.smollmandroid.R
 import io.shubham0204.smollmandroid.api.LocalApi
 import io.shubham0204.smollmandroid.data.SettingsRepository
+import io.shubham0204.smollmandroid.ui.components.SetupChecks
 import io.shubham0204.smollmandroid.ui.theme.ServerTheme
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -69,7 +70,7 @@ class PairingActivity : ComponentActivity() {
                     icon = icon,
                     onAllow = {
                         lifecycleScope.launch {
-                            val token = pairing.pair(caller, displayName)
+                            val token = pairing.pair(caller, displayName, AppSignature.digest(packageManager, caller))
                             val port = settings.current.port
                             setResult(
                                 Activity.RESULT_OK,
@@ -79,6 +80,10 @@ class PairingActivity : ComponentActivity() {
                                     .putExtra(LocalApi.EXTRA_API_VERSION, LocalApi.API_VERSION)
                                     .putExtra(LocalApi.EXTRA_SERVER_PACKAGE, packageName),
                             )
+                            // paired apps can only wake the server from the background with unrestricted battery
+                            if (!SetupChecks.batteryUnrestricted(this@PairingActivity)) {
+                                runCatching { startActivity(SetupChecks.batteryExemptionIntent(this@PairingActivity)) }
+                            }
                             finish()
                         }
                     },

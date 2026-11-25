@@ -65,6 +65,15 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Runs an on-device language model and serves it over a loopback-only (127.0.0.1) HTTP API to apps the user explicitly paired. The model must stay loaded in memory between requests from other apps, which no other foreground service type covers." />
         </service>
+
+        <!-- Lets paired apps start the server without opening this app: docs/LOCAL_LLM_API.md §3.5 -->
+        <service
+            android:name=".service.WakeService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.shubham0204.smollmandroid.action.WAKE" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

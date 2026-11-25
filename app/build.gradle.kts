@@ -41,6 +41,8 @@ android {
     }
 
     buildTypes {
+        // debug builds also run on the x86_64 emulator; releases stay arm64 only
+        getByName("debug") { ndk { abiFilters += "x86_64" } }
         getByName("release") {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

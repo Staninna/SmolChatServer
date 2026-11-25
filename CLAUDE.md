@@ -14,6 +14,9 @@ below are enough to work safely.
 - `my-main` holds all fork work and is the GitHub default branch. `main` mirrors `upstream/main`.
 - Install mode: replace. The fork keeps upstream's application ID (`io.shubham0204.smollmandroid`):
   clients pair with that package, so it stays.
+- `docs/LOCAL_LLM_API.md` is the only copy of the client contract. June and HeliBoard link to it.
+- Debug builds include x86_64 (llama.cpp's plain `smollm` library), so they run on the emulator.
+  Releases stay arm64 only.
 - Release build: `:app:assembleRelease`, JDK 17. `smollm` compiles llama.cpp natively (NDK
   27.2.12479018, CMake 3.22.1) from the `external/` submodules; run
   `git submodule update --init --recursive` after cloning or syncing. Upstream's own release

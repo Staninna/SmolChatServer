@@ -47,6 +47,10 @@ class ServerController(
             }
         }
         scope.launch { engine.refreshIdleState() }
+        // nothing to do for a while: stop the service and its notification too; a paired app wakes it again
+        scope.launch {
+            engine.idleUnloads.collect { if (isRunning && jobs.active.value.isEmpty()) stop() }
+        }
     }
 
     val isRunning: Boolean

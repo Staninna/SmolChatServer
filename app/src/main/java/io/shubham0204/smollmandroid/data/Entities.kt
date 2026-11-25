@@ -37,6 +37,12 @@ data class PairedAppEntity(
     val pairedAt: Long,
     val lastUsedAt: Long? = null,
     val requestCount: Long = 0,
+    /**
+     * SHA-256 of the app's signing certificate, so a reinstall by someone else under the same
+     * package name cannot wake the server. Added in schema version 4; older pairings fill it in at
+     * their first wake.
+     */
+    val certDigest: String? = null,
 )
 
 /** Request metadata. Bodies are only filled while the debug toggle is on. */

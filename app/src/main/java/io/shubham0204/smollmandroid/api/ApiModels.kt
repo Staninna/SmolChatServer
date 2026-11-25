@@ -13,9 +13,9 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 
-/** Wire types for docs/LOCAL_LLM_API.md (contract v1). Keep both repositories in sync. */
+/** Wire types for docs/LOCAL_LLM_API.md (contract v3). */
 object LocalApi {
-    const val API_VERSION = 2
+    const val API_VERSION = 3
     const val DEFAULT_PORT = 8080
     const val LOOPBACK_HOST = "127.0.0.1"
     const val CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
@@ -26,6 +26,16 @@ object LocalApi {
     const val EXTRA_BASE_URL = "base_url"
     const val EXTRA_API_VERSION = "api_version"
     const val EXTRA_SERVER_PACKAGE = "server_package"
+
+    // waking the server (§3.5)
+    const val ACTION_WAKE = "io.shubham0204.smollmandroid.action.WAKE"
+    const val WAKE_DESCRIPTOR = "io.shubham0204.smollmandroid.IWake"
+    const val WAKE_TRANSACTION = android.os.IBinder.FIRST_CALL_TRANSACTION
+    const val WAKE_STARTED = 0
+    const val WAKE_NOT_PAIRED = 1
+    const val WAKE_NO_MODEL = 2
+    const val WAKE_NOT_ALLOWED = 3
+    const val WAKE_FAILED = 4
 
     /** Shared JSON configuration: lenient on input, compact on output, no nulls on the wire. */
     @OptIn(ExperimentalSerializationApi::class)
@@ -199,8 +209,8 @@ data class HealthResponse(
     @SerialName("api_version") val apiVersion: Int = LocalApi.API_VERSION,
     val model: String? = null,
     @SerialName("queue_length") val queueLength: Int = 0,
-    /** Optional capabilities of this server (v2). */
-    val features: List<String> = listOf("background_jobs", "prompt_cache", "request_id", "durable_jobs"),
+    /** Optional capabilities of this server (v2; `wake` since v3). */
+    val features: List<String> = listOf("background_jobs", "prompt_cache", "request_id", "durable_jobs", "wake"),
 )
 
 @Serializable

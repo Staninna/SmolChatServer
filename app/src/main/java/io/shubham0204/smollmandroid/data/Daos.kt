@@ -49,6 +49,12 @@ interface PairedAppDao {
 
     @Query("DELETE FROM paired_apps WHERE packageName = :packageName")
     suspend fun revoke(packageName: String)
+
+    @Query("SELECT * FROM paired_apps WHERE packageName = :packageName LIMIT 1")
+    suspend fun get(packageName: String): PairedAppEntity?
+
+    @Query("UPDATE paired_apps SET certDigest = :digest WHERE packageName = :packageName")
+    suspend fun setCertDigest(packageName: String, digest: String)
 }
 
 @Dao

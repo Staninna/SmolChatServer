@@ -12,14 +12,22 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [ModelEntity::class, PairedAppEntity::class, RequestLogEntity::class, JobEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class ServerDatabase : RoomDatabase() {
     companion object {
         /** Every schema step, oldest first. */
         val MIGRATIONS: Array<Migration>
-            get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+            get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+
+        /** Version 4 stores the signing certificate of each paired app, checked when it wakes the server. */
+        val MIGRATION_3_4 =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE paired_apps ADD COLUMN certDigest TEXT")
+                }
+            }
 
         // exactly what Room generates for [JobEntity]; a difference fails the schema check at start
         const val JOBS_TABLE_SQL =

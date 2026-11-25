@@ -36,8 +36,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -173,6 +176,11 @@ class InferenceEngine(
     private val _state = MutableStateFlow(EngineState())
     override val state: StateFlow<EngineState> = _state.asStateFlow()
 
+    private val _idleUnloads = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Emits each time the idle timeout unloaded the model. */
+    val idleUnloads: SharedFlow<Unit> = _idleUnloads.asSharedFlow()
+
     /** Refreshes the status shown when nothing is loaded (e.g. after the model choice changed). */
     suspend fun refreshIdleState() {
         if (smolLM.isLoaded) return
@@ -242,6 +250,7 @@ class InferenceEngine(
                 delay(minutes * 60_000L)
                 if (waiting.get() == 0) {
                     gate.withLock { unloadLocked() }
+                    _idleUnloads.tryEmit(Unit)
                 }
             }
     }
