@@ -2,8 +2,9 @@
 
 This document is the contract between the **server** (the SmolChat fork,
 package `io.shubham0204.smollmandroid`) and its **clients** (the June fork,
-`com.denser.june`, and the HeliBoard fork, `helium314.keyboard`). This file in the
-SmolChat repository is the only copy; clients link to it.
+`com.denser.june`, the HeliBoard fork, `helium314.keyboard`, and the Dicio fork,
+`org.stypox.dicio`, which answers questions no skill understands with streamed chat
+completions). This file in the SmolChat repository is the only copy; clients link to it.
 
 Design goals: fully on-device, FOSS only, no traffic beyond `127.0.0.1`, one model
 in RAM, OpenAI-compatible enough that existing client code needs few changes, and
