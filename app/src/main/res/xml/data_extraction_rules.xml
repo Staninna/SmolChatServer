@@ -1,18 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Nothing is backed up or transferred: tokens, models and logs stay on this device. -->
+<!--
+    Backups (Seedvault uses device-transfer) hold the settings, the database (paired apps, request
+    log, background jobs) and nothing else of size. Model files are left out: they are often several
+    GB, and Android drops an app's whole backup above 3 GiB. Tokens are stored only as hashes, and
+    clients keep their own token out of their backups, so they pair again after a restore.
+    Keep backup_rules.xml (Android 11 and older) in step.
+-->
 <data-extraction-rules>
     <cloud-backup>
-        <exclude domain="root" />
-        <exclude domain="file" />
-        <exclude domain="database" />
-        <exclude domain="sharedpref" />
-        <exclude domain="external" />
+        <exclude domain="file" path="models/" />
     </cloud-backup>
     <device-transfer>
-        <exclude domain="root" />
-        <exclude domain="file" />
-        <exclude domain="database" />
-        <exclude domain="sharedpref" />
-        <exclude domain="external" />
+        <exclude domain="file" path="models/" />
     </device-transfer>
 </data-extraction-rules>

@@ -9,6 +9,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.io.File
 
 @Database(
     entities = [ModelEntity::class, PairedAppEntity::class, RequestLogEntity::class, JobEntity::class],
@@ -20,6 +21,24 @@ abstract class ServerDatabase : RoomDatabase() {
         /** Every schema step, oldest first. */
         val MIGRATIONS: Array<Migration>
             get() = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+
+        /**
+         * Forgets models whose file is gone. Backups leave the model files out, so after a restore
+         * their rows point at nothing, and importing the same file again would give two rows with
+         * one path. The active-model setting already falls back when its row is missing.
+         */
+        val FORGET_MISSING_MODELS =
+            object : RoomDatabase.Callback() {
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    val missing = mutableListOf<Long>()
+                    db.query("SELECT id, path FROM models").use { c ->
+                        while (c.moveToNext()) {
+                            if (!File(c.getString(1)).exists()) missing += c.getLong(0)
+                        }
+                    }
+                    missing.forEach { db.execSQL("DELETE FROM models WHERE id = ?", arrayOf(it)) }
+                }
+            }
 
         /** Version 4 stores the signing certificate of each paired app, checked when it wakes the server. */
         val MIGRATION_3_4 =

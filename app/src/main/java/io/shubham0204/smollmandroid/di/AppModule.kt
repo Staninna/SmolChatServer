@@ -25,6 +25,7 @@ val appModule = module {
     single {
         Room.databaseBuilder(androidContext(), ServerDatabase::class.java, "local_ai_server.db")
             .addMigrations(*ServerDatabase.MIGRATIONS)
+            .addCallback(ServerDatabase.FORGET_MISSING_MODELS)
             .build()
     }
     single { get<ServerDatabase>().models() }
